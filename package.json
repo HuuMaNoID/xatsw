@@ -1,0 +1,16 @@
+{
+    "name": "xatsw",
+    "author": "huumanoid",
+    "version": "0.1.0",
+    "description": "Tool for fast and handy xat profile switching",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/huumanoid/xatsw.git"
+    },
+    "license": "GPL-3.0",
+    "main": "index",
+    "dependencies": {
+        "command-line-commands": "^0.1.2",
+        "prompt": "^0.2.14"
+    }
+}
