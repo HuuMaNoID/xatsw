@@ -6,6 +6,20 @@ const fs = require('fs');
 const commandLineCommands = require('command-line-commands');
 const prompt = require('prompt');
 
+
+function readConf() {
+    var config = fs.readSync('xatsw.conf');
+    config = JSON.parse(config);
+    return config;
+}
+
+function saveConf(config) {
+    fs.writeSync('xatsw.conf', JSON.stringify(config));
+}
+
+
+var config = readConf();
+
 function askName(path) {
     return new Promise(function (resolve, reject) {
         prompt.start();
@@ -87,4 +101,9 @@ switch (command.name) {
         });
 
         break;
+    case 'add-storage':
+        break;
 }
+
+
+saveConf(config);
