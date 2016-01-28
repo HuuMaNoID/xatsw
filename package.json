@@ -10,7 +10,7 @@
     "license": "GPL-3.0",
     "main": "index",
     "dependencies": {
-        "command-line-commands": "^0.1.2",
+        "commander": "^2.9.0",
         "prompt": "^0.2.14"
     }
 }

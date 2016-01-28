@@ -3,18 +3,23 @@
 const path = require('path');
 const fs = require('fs');
 
-const commandLineCommands = require('command-line-commands');
+var program = require('commander');
 const prompt = require('prompt');
 
 
 function readConf() {
-    var config = fs.readSync('xatsw.conf');
-    config = JSON.parse(config);
-    return config;
+    try {
+        var config = fs.readFileSync('xatsw.conf', 'utf8');
+        config = JSON.parse(config);
+        return config;
+    } catch (e) {
+        console.log('error while config reading:', e);
+        return {}; 
+    }
 }
 
 function saveConf(config) {
-    fs.writeSync('xatsw.conf', JSON.stringify(config));
+    fs.writeFileSync('xatsw.conf', JSON.stringify(config));
 }
 
 
@@ -51,37 +56,22 @@ function askName(path) {
     });
 }
 
-const cli = commandLineCommands([
-    { 
-        name: 'extract', 
-        definitions: [ 
-            { name: 'name', type: String }, 
-            { name: 'storage', type: String },
-            { name: 'target', type: String },
-        ] 
-    },
-    { 
-        name: 'load', 
-        definitions: [ 
-            { name: 'name', type: String }, 
-            { name: 'storage', type: String },
-            { name: 'target', type: String },
-        ] 
-    },
-]);
 
-const command = cli.parse();
 
-switch (command.name) {
-    case 'extract':
-    case 'load':
-        const storeName = command.options.name,
-            storage = command.options.storage,
-            target = command.options.target;
+class ProfileWorker {
+
+    constructor(options) {
+        this.options = options;
+    }
+
+    processArgs() {
+        const storeName = this.options.name,
+            storage = this.options.storage,
+            target = this.options.target;
 
         
 
-        new Promise(function (resolve, reject) {
+        return new Promise(function (resolve, reject) {
             if (storeName) {
                 resolve(storeName);
             }
@@ -89,21 +79,57 @@ switch (command.name) {
         }).catch(function (e) {
             return askName(storage);
         }).then(function (storeName) {
-
-            const nameInStore = path.join(storage, storeName), 
-                nameInTarget = path.join(target, 'chat.sol');
-
-
-            const load = command.name == 'load';
-
-            const copyTo = fs.createWriteStream(load ? nameInStore : nameInTarget);
-            fs.createReadStream(load ? nameInTarget : nameInStore).pipe(copyTo);
+            return Promise.resolve({ 
+                inStorage: path.join(storage, storeName),
+                inTarget: path.join(target, 'chat.sol')
+            });
         });
 
-        break;
-    case 'add-storage':
-        break;
+    }
+
+    load() {
+        this.processArgs()
+            .then(function (names) {
+                const wstream = fs.createWriteStream(names.inStorage);
+                fs.createReadStream(names.inTarget).pipe(wstream);
+            })
+    }
+
+    extract() {
+        this.processArgs()
+            .then(function (names) {
+                const wstream = fs.createWriteStream(names.inTarget);
+                fs.createReadStream(names.inStorage).pipe(wstream);
+            })
+            
+    }
 }
 
+program
+    .version('0.1.0');
+
+program
+    .command('extract')
+    .description('Extracting existing profile to flash local storage')
+    .option('-s, --storage [storage]', 'Where to store')
+    .option('-t, --target [target]', 'From whence to store')
+    .option('-n, --name [name]', 'Name of stored profile')
+    .action(function(options) {
+        new ProfileWorker(options).extract();
+    });
+
+
+program
+    .command('load')
+    .description('Loading profile from flash local storage')
+    .option('-s, --storage [storage]', 'Where to store')
+    .option('-t, --target [target]', 'From whence to store')
+    .option('-n, --name [name]', 'Name of stored profile')
+    .action(function(options) {
+        new ProfileWorker(options).load();
+    });
+
+
+program.parse(process.argv);
 
 saveConf(config);
