@@ -7,6 +7,12 @@
         "type": "git",
         "url": "https://github.com/huumanoid/xatsw.git"
     },
+    "engines": {
+        "node": ">=5.5.0"
+    },
+    "directories": {
+        "bin": "./bin"
+    },
     "license": "GPL-3.0",
     "main": "index",
     "dependencies": {
