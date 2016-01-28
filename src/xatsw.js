@@ -8,14 +8,16 @@ const prompt = require('prompt');
 
 
 function readConf() {
+    var config;
     try {
-        var config = fs.readFileSync('xatsw.conf', 'utf8');
+        config = fs.readFileSync('xatsw.conf', 'utf8');
         config = JSON.parse(config);
-        return config;
     } catch (e) {
         console.log('error while config reading:', e);
-        return {}; 
+        config = {};
     }
+    config.storages = config.storages || {};
+    return config;
 }
 
 function saveConf(config) {
@@ -24,6 +26,8 @@ function saveConf(config) {
 
 
 var config = readConf();
+
+process.on('exit', function () { saveConf(config) });
 
 function askName(path) {
     return new Promise(function (resolve, reject) {
@@ -66,7 +70,7 @@ class ProfileWorker {
 
     processArgs() {
         const storeName = this.options.name,
-            storage = this.options.storage,
+            storage = this.options.storage || config.current_storage,
             target = this.options.target;
 
         
@@ -114,7 +118,7 @@ program
     .option('-s, --storage [storage]', 'Where to store')
     .option('-t, --target [target]', 'From whence to store')
     .option('-n, --name [name]', 'Name of stored profile')
-    .action(function(options) {
+    .action(function (options) {
         new ProfileWorker(options).extract();
     });
 
@@ -125,11 +129,75 @@ program
     .option('-s, --storage [storage]', 'Where to store')
     .option('-t, --target [target]', 'From whence to store')
     .option('-n, --name [name]', 'Name of stored profile')
-    .action(function(options) {
+    .action(function (options) {
         new ProfileWorker(options).load();
     });
 
 
+program
+    .command('list-storage')
+    .description('Shows full list of storages')
+    .action(function () {
+        for (var key in config.storages) {
+            console.log('%s %s', key, config.storages[key]);
+        }
+    });
+
+
+program
+    .command('set-storage [name]')
+    .description('Set current storage, used by default')
+    .action(function (name) {
+        if (config.storages[name]) {
+            config.current_storage = name;
+        } else {
+            console.error('Storage with name %s doesn\'t exists', name);
+        }
+    })
+
+program
+    .command('add-storage [name] [path]')
+    .description('Adding new storage to storage list')
+    .action(function (name, path) {
+        try {
+            if (fs.lstatSync(path).isDirectory()) {                
+                new Promise(function (resolve, reject) {
+                    if (config.storages[name]) {
+                        prompt.start();
+                        return prompt.get([{
+                            name: 'confirm',
+                            pattern: /^[y|n]$/,
+                            description: 'Storage with name ' + name +
+                                ' is already exists. Rewrite?',
+                            message: 'Please, type y or n',
+                            required: true
+                        }], function (err, res) {
+                            if (err || res.confirm === 'n') {
+                                reject();
+                            }
+                            resolve();
+                        });
+                    } 
+                    resolve();
+                }).then(function () {
+                    config.storages[name] = path;
+                }).catch(function () {
+                    
+                })
+            } else {
+                console.error('File %s is not directory', storage);
+            }
+        } catch (e) {
+            console.error('File %s doesn\'t exists', storage);
+        }
+    });
+
+program
+    .command('remove-storage [name]')
+    .description('Remove storage from storage list')
+    .action(function (name) {
+        delete config.storages[name];
+     });
+
 program.parse(process.argv);
 
-saveConf(config);
