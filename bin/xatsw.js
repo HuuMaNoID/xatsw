@@ -36,16 +36,30 @@ process.on('exit', function () {
     saveConf(config) 
 });
 
-
-if(process.argv.slice(2)[0] === 'completion') return tabtab.complete('pkgname', function(err, data) {
-      // simply return here if there's an error or data not provided.
-      //   // stderr not showing on completions
+if(process.argv.slice(2)[0] === 'completion') return tabtab.complete('xatsw', function(err, data) {
     if(err || !data) return;
-    console.log(data);
-      
+
+    switch (data.prev) {
+    case 'extract':
+        return fs.readdir(config.storage, function (err, res) {
+            if (!err) {
+                tabtab.log(res, data);
+            }
+        });
+    case 'set-target':
+    case 'remove-target':
+        var targets = [];
+        for (var key in config.targets) {
+            targets.push(key);
+        }
+        return tabtab.log(targets, data);
+    }
+
     if(/^--\w?/.test(data.last)) return tabtab.log(['help', 'version'], data, '--');
     if(/^-\w?/.test(data.last)) return tabtab.log(['n', 'o', 'd', 'e'], data, '-');
-    tabtab.log(['list', 'of', 'commands'], data);
+    tabtab.log(['extract', 'load', 'list-target', 'add-target'
+            , 'remove-target', 'set-target', 'set-storage'
+            , 'list-profiles'], data);
 });
 
 function askName(path) {
@@ -78,8 +92,6 @@ function askName(path) {
         });
     });
 }
-
-
 
 class ProfileWorker {
 
@@ -183,6 +195,24 @@ program
     .action(function (name, options) {
         options.name = name;
         new ProfileWorker(options).load();
+    });
+
+program
+    .command('list-profiles')
+    .description('Shows full list of profiles in storage')
+    .action(function () {
+        fs.access(config.storage, function (err, res) {
+            if (err) {
+                return console.error('Cannot access to storage %s'
+                        , config.storage);
+            }
+            fs.readdir(config.storage, function (err, res) {
+                for (var i = 0; i < res.length; ++i) {
+                    console.log(res[i]);
+                }
+            });
+        });
+
     });
 
 
