@@ -1,2 +1,1 @@
-#!/usr/bin/env node
-require('./src/xatsw.js');
+require('./bin/xatsw.js');

@@ -11,6 +11,7 @@
     "main": "index",
     "dependencies": {
         "commander": "^2.9.0",
-        "prompt": "^0.2.14"
+        "prompt": "^0.2.14",
+        "tabtab": "^0.0.4"
     }
 }

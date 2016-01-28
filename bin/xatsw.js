@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 'use strict'
 
 const path = require('path');
@@ -5,6 +7,7 @@ const fs = require('fs');
 
 var program = require('commander');
 const prompt = require('prompt');
+const tabtab = require('tabtab');
 
 
 function readConf() {
@@ -29,6 +32,17 @@ var config = readConf();
 
 process.on('exit', function () { 
     saveConf(config) 
+});
+
+
+if(process.argv.slice(2)[0] === 'completion') return tabtab.complete('pkgname', function(err, data) {
+      // simply return here if there's an error or data not provided.
+      //   // stderr not showing on completions
+    if(err || !data) return;
+      
+    if(/^--\w?/.test(data.last)) return tabtab.log(['help', 'version'], data, '--');
+    if(/^-\w?/.test(data.last)) return tabtab.log(['n', 'o', 'd', 'e'], data, '-');
+    tabtab.log(['list', 'of', 'commands'], data);
 });
 
 function askName(path) {
@@ -118,15 +132,14 @@ class ProfileWorker {
                             message: 'Please, type y or n',
                             required: true
                         }], function (err, res) {
-                            if (err || res.confirm == 'n') {
+                            if (err || res.confirm === 'n') {
                                 reject()
                             }
                             resolve(names);
                         });
                     });
-
-                    
                 } catch (e) { }
+
                 return names;
 
             }).then(function (names) {
@@ -196,7 +209,7 @@ program
     .description('Adding new target to target list')
     .action(function (name, target_path) {
         try {
-            if (fs.lstatSync(path).isDirectory()) {
+            if (fs.lstatSync(target_path).isDirectory()) {
                 new Promise(function (resolve, reject) {
                     if (config.targets[name]) {
                         prompt.start();
