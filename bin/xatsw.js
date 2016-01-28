@@ -9,11 +9,13 @@ var program = require('commander');
 const prompt = require('prompt');
 const tabtab = require('tabtab');
 
+const config_path = path.resolve(process.env.HOME, '.xatsw')
+
 
 function readConf() {
     var config;
     try {
-        config = fs.readFileSync('xatsw.conf', 'utf8');
+        config = fs.readFileSync(config_path, 'utf8');
         config = JSON.parse(config);
     } catch (e) {
         console.log('error while config reading:', e);
@@ -24,7 +26,7 @@ function readConf() {
 }
 
 function saveConf(config) {
-    fs.writeFileSync('xatsw.conf', JSON.stringify(config));
+    fs.writeFileSync(config_path, JSON.stringify(config));
 }
 
 
@@ -39,6 +41,7 @@ if(process.argv.slice(2)[0] === 'completion') return tabtab.complete('pkgname', 
       // simply return here if there's an error or data not provided.
       //   // stderr not showing on completions
     if(err || !data) return;
+    console.log(data);
       
     if(/^--\w?/.test(data.last)) return tabtab.log(['help', 'version'], data, '--');
     if(/^-\w?/.test(data.last)) return tabtab.log(['n', 'o', 'd', 'e'], data, '-');
@@ -249,7 +252,7 @@ program
      });
 
 program
-    .command('set-storage')
+    .command('set-storage [name]')
     .description('Sets current storage, used by default')
     .action(function (storage_path) {
         try {
