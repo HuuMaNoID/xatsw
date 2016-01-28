@@ -16,7 +16,7 @@ function readConf() {
         console.log('error while config reading:', e);
         config = {};
     }
-    config.storages = config.storages || {};
+    config.targets = config.targets || {};
     return config;
 }
 
@@ -27,7 +27,9 @@ function saveConf(config) {
 
 var config = readConf();
 
-process.on('exit', function () { saveConf(config) });
+process.on('exit', function () { 
+    saveConf(config) 
+});
 
 function askName(path) {
     return new Promise(function (resolve, reject) {
@@ -70,18 +72,28 @@ class ProfileWorker {
 
     processArgs() {
         const storeName = this.options.name,
-            storage = this.options.storage || config.current_storage,
-            target = this.options.target;
+            storage = this.options.storage || config.storage,
+            target = this.options.target 
+                || config.targets[config.current_target];
 
-        
+
 
         return new Promise(function (resolve, reject) {
+            if (!target) {
+                console.error('Target is not specified. Use -t, --target ' +
+                        'or execute set-target to specify default target');
+                reject();
+            }
             if (storeName) {
                 resolve(storeName);
             }
-            reject()
+            reject({askName: true})
         }).catch(function (e) {
-            return askName(storage);
+            e = e || {}
+            if (e.askName) {
+                return askName(storage);
+            }
+            return Promise.reject();
         }).then(function (storeName) {
             return Promise.resolve({ 
                 inStorage: path.join(storage, storeName),
@@ -94,6 +106,30 @@ class ProfileWorker {
     load() {
         this.processArgs()
             .then(function (names) {
+                try {
+                    fs.lstatSync(names.nameInStorage);
+                    return new Promise(function (resolve, reject) {
+                        prompt.start();
+                        prompt.get([{
+                            name: 'confirm',
+                            description: 'File ' + names.nameInStorage +
+                                'already exists. Rewrite? y/n',
+                            pattern: '^[y|n]$',
+                            message: 'Please, type y or n',
+                            required: true
+                        }], function (err, res) {
+                            if (err || res.confirm == 'n') {
+                                reject()
+                            }
+                            resolve(names);
+                        });
+                    });
+
+                    
+                } catch (e) { }
+                return names;
+
+            }).then(function (names) {
                 const wstream = fs.createWriteStream(names.inStorage);
                 fs.createReadStream(names.inTarget).pipe(wstream);
             })
@@ -113,62 +149,62 @@ program
     .version('0.1.0');
 
 program
-    .command('extract')
+    .command('extract [name]')
     .description('Extracting existing profile to flash local storage')
     .option('-s, --storage [storage]', 'Where to store')
     .option('-t, --target [target]', 'From whence to store')
-    .option('-n, --name [name]', 'Name of stored profile')
-    .action(function (options) {
+    .action(function (name, options) {
+        options.name = name;
         new ProfileWorker(options).extract();
     });
 
 
 program
-    .command('load')
+    .command('load [name]')
     .description('Loading profile from flash local storage')
     .option('-s, --storage [storage]', 'Where to store')
     .option('-t, --target [target]', 'From whence to store')
-    .option('-n, --name [name]', 'Name of stored profile')
-    .action(function (options) {
+    .action(function (name, options) {
+        options.name = name;
         new ProfileWorker(options).load();
     });
 
 
 program
-    .command('list-storage')
-    .description('Shows full list of storages')
+    .command('list-target')
+    .description('Shows full list of targets')
     .action(function () {
-        for (var key in config.storages) {
-            console.log('%s %s', key, config.storages[key]);
+        for (var key in config.targets) {
+            console.log('%s %s', key, config.targets[key]);
         }
     });
 
 
 program
-    .command('set-storage [name]')
-    .description('Set current storage, used by default')
+    .command('set-target [name]')
+    .description('Set current target, used by default')
     .action(function (name) {
-        if (config.storages[name]) {
-            config.current_storage = name;
+        if (config.targets[name]) {
+            config.current_target = name;
         } else {
-            console.error('Storage with name %s doesn\'t exists', name);
+            console.error('Target with name %s doesn\'t exists', name);
         }
     })
 
 program
-    .command('add-storage [name] [path]')
-    .description('Adding new storage to storage list')
-    .action(function (name, path) {
+    .command('add-target [name] [path]')
+    .description('Adding new target to target list')
+    .action(function (name, target_path) {
         try {
-            if (fs.lstatSync(path).isDirectory()) {                
+            if (fs.lstatSync(path).isDirectory()) {
                 new Promise(function (resolve, reject) {
-                    if (config.storages[name]) {
+                    if (config.targets[name]) {
                         prompt.start();
                         return prompt.get([{
                             name: 'confirm',
                             pattern: /^[y|n]$/,
-                            description: 'Storage with name ' + name +
-                                ' is already exists. Rewrite?',
+                            description: 'Target with name ' + name +
+                                ' is already exists. Rewrite? y/n',
                             message: 'Please, type y or n',
                             required: true
                         }], function (err, res) {
@@ -177,27 +213,44 @@ program
                             }
                             resolve();
                         });
-                    } 
+                    }
                     resolve();
                 }).then(function () {
-                    config.storages[name] = path;
-                }).catch(function () {
-                    
-                })
+                    target_path = path.resolve(target_path);
+                    config.targets[name] = target_path;
+                    console.log('%s added to target list', target_path);
+                });
             } else {
-                console.error('File %s is not directory', storage);
+                console.error('File %s is not a directory', target_path);
             }
         } catch (e) {
-            console.error('File %s doesn\'t exists', storage);
+            console.error('File %s doesn\'t exists', target_path);
         }
     });
 
 program
-    .command('remove-storage [name]')
-    .description('Remove storage from storage list')
+    .command('remove-target [name]')
+    .description('Remove target from target list')
     .action(function (name) {
-        delete config.storages[name];
+        delete config.targets[name];
      });
+
+program
+    .command('set-storage')
+    .description('Sets current storage, used by default')
+    .action(function (storage_path) {
+        try {
+            storage_path = path.resolve(storage_path);
+            if (fs.lstatSync(storage_path).isDirectory()) {
+                config.storage = storage_path;
+                console.log('%s set as storage', storage_path);
+            } else {
+                console.error('File %s is not a directory', path);
+            }
+        } catch (e) {
+            console.error('File %s doesn\'t exists', path);
+        }
+    });
 
 program.parse(process.argv);
 
