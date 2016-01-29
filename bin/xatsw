@@ -298,5 +298,20 @@ program
         }
     });
 
+program.command('clean')
+    .description('Removes chat.sol from flash local storage')
+    .action(function (options) {
+        const storage = config.current_target;
+        try {
+            const file = path.join(storage, 'chat.sol');
+            fs.unlink(file, function (err, res) {
+                if (err) {
+                    return console.error('Something went wrong while deleting %s. ' +
+                    'Probably file doesn\'t exists.', file);
+                } 
+            });
+        }
+    });
+
 program.parse(process.argv);
 
