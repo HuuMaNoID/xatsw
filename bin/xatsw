@@ -59,7 +59,7 @@ if(process.argv.slice(2)[0] === 'completion') return tabtab.complete('xatsw', fu
     if(/^-\w?/.test(data.last)) return tabtab.log(['n', 'o', 'd', 'e'], data, '-');
     tabtab.log(['extract', 'load', 'list-target', 'add-target'
             , 'remove-target', 'set-target', 'set-storage'
-            , 'list-profiles'], data);
+            , 'list-profiles', 'clean'], data);
 });
 
 function askName(path) {
