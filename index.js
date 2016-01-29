@@ -1,1 +1,1 @@
-require('./bin/xatsw.js');
+require('./bin/xatsw');
