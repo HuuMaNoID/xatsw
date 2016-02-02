@@ -1,0 +1,7 @@
+{
+  "color": true,
+  "edition": "es6",
+  "indent": true,
+  "maxlen": 80,
+  "node": true
+}

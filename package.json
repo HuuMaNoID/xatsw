@@ -1,7 +1,7 @@
 {
     "name": "xatsw",
     "author": "huumanoid",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "description": "Tool for fast and handy xat profile switching",
     "repository": {
         "type": "git",
@@ -19,5 +19,8 @@
         "commander": "^2.9.0",
         "prompt": "^0.2.14",
         "tabtab": "^0.0.4"
+    },
+    "devDependencies": {
+        "jslint": "^0.9.6"
     }
 }

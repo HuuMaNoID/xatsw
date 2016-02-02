@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
-'use strict'
+'use strict';
 
 const path = require('path');
 const fs = require('fs');
 
-var program = require('commander');
+const program = require('commander');
 const prompt = require('prompt');
 const tabtab = require('tabtab');
 
@@ -13,7 +13,7 @@ const config_path = path.resolve(process.env.HOME, '.xatsw')
 
 
 function readConf() {
-    var config;
+    let config;
     try {
         config = fs.readFileSync(config_path, 'utf8');
         config = JSON.parse(config);
@@ -30,37 +30,40 @@ function saveConf(config) {
 }
 
 
-var config = readConf();
+let config = readConf();
 
-process.on('exit', function () { 
+process.on('exit', function () {
     saveConf(config);
 });
 
-if(process.argv.slice(2)[0] === 'completion') return tabtab.complete('xatsw', function(err, data) {
-    if(err || !data) return;
+if (process.argv.slice(2)[0] === 'completion')
+    return tabtab.complete('xatsw', function(err, data) {
+        if (err || !data) return;
 
-    switch (data.prev) {
-    case 'extract':
-        return fs.readdir(config.storage, function (err, res) {
-            if (!err) {
-                tabtab.log(res, data);
+        switch (data.prev) {
+        case 'extract':
+            return fs.readdir(config.storage, function (err, res) {
+                if (!err) {
+                    tabtab.log(res, data);
+                }
+            });
+        case 'set-target':
+        case 'remove-target':
+            let targets = [];
+            for (let key in config.targets) {
+                targets.push(key);
             }
-        });
-    case 'set-target':
-    case 'remove-target':
-        var targets = [];
-        for (var key in config.targets) {
-            targets.push(key);
+            return tabtab.log(targets, data);
         }
-        return tabtab.log(targets, data);
-    }
 
-    if(/^--\w?/.test(data.last)) return tabtab.log(['help', 'version'], data, '--');
-    if(/^-\w?/.test(data.last)) return tabtab.log(['n', 'o', 'd', 'e'], data, '-');
-    tabtab.log(['extract', 'load', 'list-target', 'add-target'
-            , 'remove-target', 'set-target', 'set-storage'
-            , 'list-profiles', 'clean'], data);
-});
+        if(/^--\w?/.test(data.last))
+            return tabtab.log(['help', 'version'], data, '--');
+        if(/^-\w?/.test(data.last))
+            return tabtab.log(['n', 'o', 'd', 'e'], data, '-');
+        tabtab.log(['extract', 'load', 'list-target', 'add-target'
+                , 'remove-target', 'set-target', 'set-storage'
+                , 'list-profiles', 'clean'], data);
+    });
 
 function askName(path) {
     return new Promise(function (resolve, reject) {
@@ -102,7 +105,7 @@ class ProfileWorker {
     processArgs() {
         const storeName = this.options.name,
             storage = this.options.storage || config.storage,
-            target = this.options.target 
+            target = this.options.target
                 || config.targets[config.current_target];
 
 
@@ -124,7 +127,7 @@ class ProfileWorker {
             }
             return Promise.reject();
         }).then(function (storeName) {
-            return Promise.resolve({ 
+            return Promise.resolve({
                 inStorage: path.join(storage, storeName),
                 inTarget: path.join(target, 'chat.sol')
             });
@@ -168,13 +171,15 @@ class ProfileWorker {
             .then(function (names) {
                 const wstream = fs.createWriteStream(names.inTarget);
                 wstream.on('error', function (e) {
-                    console.error('Something wrong with target file %s', e.path);
+                    console.error('Something wrong with target file %s'
+                                    , e.path);
                 });
                 fs.createReadStream(names.inStorage).on('error', function (e) {
-                    console.error('Something wrong with storage file %s', e.path);
+                    console.error('Something wrong with storage file %s'
+                                    , e.path);
                 }).pipe(wstream);
             })
-            
+
     }
 }
 
@@ -212,7 +217,7 @@ program
                         , config.storage);
             }
             fs.readdir(config.storage, function (err, res) {
-                for (var i = 0; i < res.length; ++i) {
+                for (let i = 0; i < res.length; ++i) {
                     console.log(res[i]);
                 }
             });
@@ -225,7 +230,7 @@ program
     .command('list-target')
     .description('Shows full list of targets')
     .action(function () {
-        for (var key in config.targets) {
+        for (ley key in config.targets) {
             console.log('%s %s', key, config.targets[key]);
         }
     });
