@@ -33,7 +33,7 @@ function saveConf(config) {
 var config = readConf();
 
 process.on('exit', function () { 
-    saveConf(config) 
+    saveConf(config);
 });
 
 if(process.argv.slice(2)[0] === 'completion') return tabtab.complete('xatsw', function(err, data) {
@@ -167,7 +167,12 @@ class ProfileWorker {
         this.processArgs()
             .then(function (names) {
                 const wstream = fs.createWriteStream(names.inTarget);
-                fs.createReadStream(names.inStorage).pipe(wstream);
+                wstream.on('error', function (e) {
+                    console.error('Something wrong with target file %s', e.path);
+                });
+                fs.createReadStream(names.inStorage).on('error', function (e) {
+                    console.error('Something wrong with storage file %s', e.path);
+                }).pipe(wstream);
             })
             
     }
