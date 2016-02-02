@@ -230,7 +230,7 @@ program
     .command('list-target')
     .description('Shows full list of targets')
     .action(function () {
-        for (ley key in config.targets) {
+        for (let key in config.targets) {
             console.log('%s %s', key, config.targets[key]);
         }
     });
