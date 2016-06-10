@@ -4,12 +4,13 @@
 
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 
 const program = require('commander');
 const prompt = require('prompt');
 const tabtab = require('tabtab');
 
-const config_path = path.resolve(process.env.HOME, '.xatsw')
+const config_path = path.resolve(process.env.HOME, '.xatsw');
 
 
 function readConf() {
@@ -42,6 +43,7 @@ if (process.argv.slice(2)[0] === 'completion')
 
         switch (data.prev) {
         case 'extract':
+        case 'load':
             return fs.readdir(config.storage, function (err, res) {
                 if (!err) {
                     tabtab.log(res, data);
@@ -106,7 +108,8 @@ class ProfileWorker {
         const storeName = this.options.name,
             storage = this.options.storage || config.storage,
             target = this.options.target
-                || config.targets[config.current_target];
+                || config.targets[config.current_target],
+            forced = this.options.forced;
 
 
 
@@ -128,8 +131,10 @@ class ProfileWorker {
             return Promise.reject();
         }).then(function (storeName) {
             return Promise.resolve({
+                forced: forced,
                 inStorage: path.join(storage, storeName),
-                inTarget: path.join(target, 'chat.sol')
+                inTarget: path.join(target, 'chat.sol'),
+                storeName: storeName
             });
         });
 
@@ -137,15 +142,15 @@ class ProfileWorker {
 
     load() {
         this.processArgs()
-            .then(function (names) {
+            .then(function (options) {
                 try {
-                    fs.lstatSync(names.nameInStorage);
+                    fs.lstatSync(options.inStorage);
                     return new Promise(function (resolve, reject) {
                         prompt.start();
                         prompt.get([{
                             name: 'confirm',
-                            description: 'File ' + names.nameInStorage +
-                                'already exists. Rewrite? y/n',
+                            description: 'File already exists' + os.EOL + options.inStorage +
+                                os.EOL + 'Rewrite? y/n',
                             pattern: '^[y|n]$',
                             message: 'Please, type y or n',
                             required: true
@@ -153,28 +158,74 @@ class ProfileWorker {
                             if (err || res.confirm === 'n') {
                                 reject()
                             }
-                            resolve(names);
+                            resolve(options);
                         });
                     });
                 } catch (e) { }
 
-                return names;
+                return options;
 
-            }).then(function (names) {
-                const wstream = fs.createWriteStream(names.inStorage);
-                fs.createReadStream(names.inTarget).pipe(wstream);
+            }).then(function (options) {
+                const wstream = fs.createWriteStream(options.inStorage);
+
+                wstream.on('error', function (e) {
+                    console.error('Something wrong with storage file %s'
+                        , e.path);
+                }).on('finish', function () {
+                    console.info('Profile [' + options.storeName + '] from:' 
+                        + os.EOL + options.inTarget + os.EOL +
+                        'was successfully loaded to:' + os.EOL 
+                        + options.inStorage);
+                
+                });
+
+                fs.createReadStream(options.inTarget).on('error', function (e) {
+                    console.error('Something wrong with target file %s'
+                        , e.path);
+                }).pipe(wstream);
             })
     }
 
     extract() {
         this.processArgs()
-            .then(function (names) {
-                const wstream = fs.createWriteStream(names.inTarget);
+            .then(function (options) {
+                if (!options.forced) {
+                    try {
+                        fs.lstatSync(options.inTarget);
+                        return new Promise(function (resolve, reject) {
+                            prompt.start();
+                            prompt.get([{
+                                name: 'confirm',
+                                description: 'File already exists' + os.EOL 
+                                    + options.inTarget + os.EOL + 'Rewrite? y/n',
+                                pattern: '^[y|n]$',
+                                message: 'Please, type y or n',
+                                required: true
+                            }], function (err, res) {
+                                if (err || res.configm === 'n') {
+                                    reject();
+                                }
+                                resolve(options);
+                            });
+                        });
+                    } catch (e) { }
+                }
+                return options;
+            })
+            .then(function (options) {
+                const wstream = fs.createWriteStream(options.inTarget);
                 wstream.on('error', function (e) {
                     console.error('Something wrong with target file %s'
                                     , e.path);
+                }).on('finish', function () {
+                    console.info('Profile [' + options.storeName + '] from:' 
+                        + os.EOL + options.inStorage + os.EOL +
+                        'was successfully extracted to:' + os.EOL 
+                        + options.inTarget);
+                
                 });
-                fs.createReadStream(names.inStorage).on('error', function (e) {
+
+                fs.createReadStream(options.inStorage).on('error', function (e) {
                     console.error('Something wrong with storage file %s'
                                     , e.path);
                 }).pipe(wstream);
@@ -184,13 +235,14 @@ class ProfileWorker {
 }
 
 program
-    .version('0.2.1');
+    .version('0.3.0');
 
 program
     .command('extract [name]')
     .description('Extracting existing profile to flash local storage')
     .option('-s, --storage [storage]', 'Where to store')
     .option('-t, --target [target]', 'From whence to store')
+    .option('-f, --forced', 'Do not ask confirmation even if target already has chat.sol file')
     .action(function (name, options) {
         options.name = name;
         new ProfileWorker(options).extract();
@@ -310,16 +362,38 @@ program
 
 program.command('clean')
     .description('Removes chat.sol from flash local storage')
+    .option('-f, --forced', 'Do not ask confirmation')
     .action(function (options) {
-        const storage = config.targets[config.current_target];
-        const file = path.join(storage, 'chat.sol');
-        fs.unlink(file, function (err, res) {
-            if (err) {
-                return console.error('Something went wrong while deleting %s. ' +
-                'Probably file doesn\'t exists.', file);
-            } 
-        });
-            
+        new Promise(function (resolve, reject) {
+            if (options.forced) {
+                resolve();
+            }
+            return prompt.get([{
+                name: 'confirm',
+                pattern: /^[y|n]$/,
+                description: 'Do you really want to clean current storage [' 
+                    + config.targets[config.current_target] + ']? y/n',
+                message: 'Please, type y or n',
+                required: true
+            }], function (err, res) {
+                if (err || res.confirm === 'n') {
+                    reject(err ? JSON.stringify(err) : 'Aborted by user.');
+                }
+                resolve();
+            });
+
+        }).then(function () {
+            const storage = config.targets[config.current_target];
+            const file = path.join(storage, 'chat.sol');
+            fs.unlink(file, function (err, res) {
+                if (err) {
+                    return console.error('Something went wrong while deleting %s. ' +
+                    'Probably file doesn\'t exists.', file);
+                } 
+            });
+        }).catch(function (err) {
+            console.info('Cleaning is aborted: ' + err);
+        });            
     });
 
 program.parse(process.argv);
